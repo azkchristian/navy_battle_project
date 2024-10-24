@@ -1,6 +1,5 @@
 package fr.lernejo.navy_battle;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -25,12 +24,18 @@ public class GameRequestHandler implements HttpHandler {
 
     private void handleStartGame(HttpExchange exchange) throws IOException {
         String requestBody = new String(exchange.getRequestBody().readAllBytes());
-        GameRequest gameRequest = launcher.getObjectMapper().readValue(requestBody, GameRequest.class);
 
-        String responseBody = launcher.getObjectMapper().writeValueAsString(gameRequest);
-        exchange.sendResponseHeaders(202, responseBody.length());
-        try (OutputStream os = exchange.getResponseBody()) {
-            os.write(responseBody.getBytes());
+        try {
+            GameRequest gameRequest = launcher.getObjectMapper().readValue(requestBody, GameRequest.class);
+            String responseBody = launcher.getObjectMapper().writeValueAsString(gameRequest);
+
+            exchange.sendResponseHeaders(202, responseBody.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(responseBody.getBytes());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            exchange.sendResponseHeaders(400, -1); // Bad request
         }
     }
 }

@@ -18,26 +18,6 @@ public class Launcher {
         new Launcher().startGame(args);
     }
 
-    public ObjectMapper getObjectMapper() {
-        return objectMapper;
-    }
-
-    public String processFire(String cell) {
-        if (gameBoard.containsKey(cell)) {
-            String result = gameBoard.get(cell);
-            if ("sunk".equals(result)) {
-                gameBoard.remove(cell);
-                return "sunk";
-            }
-            return "hit";
-        }
-        return "miss";
-    }
-
-    public boolean checkIfShipLeft() {
-        return !gameBoard.isEmpty();
-    }
-
     private void startGame(String[] args) throws IOException {
         int port = Integer.parseInt(args[0]);
         String adversaryUrl = args.length > 1 ? args[1] : null;
@@ -51,6 +31,7 @@ public class Launcher {
 
         server.setExecutor(null);
         server.start();
+        System.out.println("Server started on port: " + port);
 
         if (adversaryUrl != null) {
             sendStartGameRequest(adversaryUrl, port);
@@ -70,11 +51,31 @@ public class Launcher {
         }
     }
 
+    public ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
+
     public Map<String, String> getGameBoard() {
         return gameBoard;
     }
 
-    private static void sendStartGameRequest(String adversaryUrl, int myPort) {
+    public String processFire(String cell) {
+        if (gameBoard.containsKey(cell)) {
+            String result = gameBoard.get(cell);
+            if (result.equals("sunk")) {
+                gameBoard.remove(cell);
+                return "sunk";
+            }
+            return "hit";
+        }
+        return "miss";
+    }
+
+    public boolean checkIfShipLeft() {
+        return !gameBoard.isEmpty();
+    }
+
+    private void sendStartGameRequest(String adversaryUrl, int myPort) {
         try {
             var client = java.net.http.HttpClient.newHttpClient();
             String requestBody = String.format("{\"id\":\"1\", \"url\":\"http://localhost:%d\", \"message\":\"hello\"}", myPort);
