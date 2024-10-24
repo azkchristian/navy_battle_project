@@ -8,7 +8,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class GameRequestHandler implements HttpHandler {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private final Launcher launcher;
+
+    public GameRequestHandler(Launcher launcher) {
+        this.launcher = launcher;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -21,8 +25,9 @@ public class GameRequestHandler implements HttpHandler {
 
     private void handleStartGame(HttpExchange exchange) throws IOException {
         String requestBody = new String(exchange.getRequestBody().readAllBytes());
-        Launcher.GameRequest gameRequest = objectMapper.readValue(requestBody, Launcher.GameRequest.class);
-        String responseBody = objectMapper.writeValueAsString(gameRequest);
+        GameRequest gameRequest = launcher.getObjectMapper().readValue(requestBody, GameRequest.class);
+
+        String responseBody = launcher.getObjectMapper().writeValueAsString(gameRequest);
         exchange.sendResponseHeaders(202, responseBody.length());
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(responseBody.getBytes());

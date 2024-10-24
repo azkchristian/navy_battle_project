@@ -9,9 +9,12 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-public class FireRequestHandler implements HttpHandler {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final Map<String, String> gameBoard = Launcher.getGameBoard();
+public class FireHandler implements HttpHandler {
+    private final Launcher launcher;
+
+    public FireHandler(Launcher launcher) {
+        this.launcher = launcher;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -33,33 +36,17 @@ public class FireRequestHandler implements HttpHandler {
             return;
         }
 
-        String consequence = processFire(cell);
-        boolean shipLeft = checkIfShipLeft();
+        String consequence = launcher.processFire(cell);
+        boolean shipLeft = launcher.checkIfShipLeft();
 
         response.put("consequence", consequence);
         response.put("shipLeft", shipLeft);
 
-        String jsonResponse = objectMapper.writeValueAsString(response);
+        String jsonResponse = launcher.getObjectMapper().writeValueAsString(response);
         exchange.sendResponseHeaders(200, jsonResponse.length());
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(jsonResponse.getBytes());
         }
-    }
-
-    private String processFire(String cell) {
-        if (gameBoard.containsKey(cell)) {
-            String result = gameBoard.get(cell);
-            if (result.equals("sunk")) {
-                gameBoard.remove(cell);
-                return "sunk";
-            }
-            return "hit";
-        }
-        return "miss";
-    }
-
-    private boolean checkIfShipLeft() {
-        return !gameBoard.isEmpty();
     }
 
     private String getQueryParam(String query, String param) {

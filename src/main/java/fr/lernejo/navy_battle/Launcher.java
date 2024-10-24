@@ -9,12 +9,33 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
+
 public class Launcher {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final Map<String, String> gameBoard = new HashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<String, String> gameBoard = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
         new Launcher().startGame(args);
+    }
+
+    public ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
+
+    public String processFire(String cell) {
+        if (gameBoard.containsKey(cell)) {
+            String result = gameBoard.get(cell);
+            if ("sunk".equals(result)) {
+                gameBoard.remove(cell);
+                return "sunk";
+            }
+            return "hit";
+        }
+        return "miss";
+    }
+
+    public boolean checkIfShipLeft() {
+        return !gameBoard.isEmpty();
     }
 
     private void startGame(String[] args) throws IOException {
@@ -25,8 +46,8 @@ public class Launcher {
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/ping", this::handlePing);
-        server.createContext("/api/game/start", new GameRequestHandler());
-        server.createContext("/api/game/fire", new FireRequestHandler());
+        server.createContext("/api/game/start", new GameRequestHandler(this));
+        server.createContext("/api/game/fire", new FireHandler(this));
 
         server.setExecutor(null);
         server.start();
@@ -49,7 +70,7 @@ public class Launcher {
         }
     }
 
-    static Map<String, String> getGameBoard() {
+    public Map<String, String> getGameBoard() {
         return gameBoard;
     }
 
@@ -69,11 +90,5 @@ public class Launcher {
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-    }
-
-    public static class GameRequest {
-        public String id;
-        public String url;
-        public String message;
     }
 }
