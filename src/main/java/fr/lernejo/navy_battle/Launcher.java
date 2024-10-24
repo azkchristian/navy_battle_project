@@ -2,7 +2,6 @@ package fr.lernejo.navy_battle;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
@@ -10,7 +9,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
-
 public class Launcher {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final Map<String, String> gameBoard = new HashMap<>();
@@ -27,8 +25,8 @@ public class Launcher {
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/ping", this::handlePing);
-        server.createContext("/api/game/start", new StartGameHandler());
-        server.createContext("/api/game/fire", new FireHandler());
+        server.createContext("/api/game/start", new GameRequestHandler());
+        server.createContext("/api/game/fire", new FireRequestHandler());
 
         server.setExecutor(null);
         server.start();
@@ -51,90 +49,8 @@ public class Launcher {
         }
     }
 
-    static class StartGameHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            if ("POST".equals(exchange.getRequestMethod())) {
-                handleStartGame(exchange);
-            } else {
-                exchange.sendResponseHeaders(404, -1);
-            }
-        }
-
-        private void handleStartGame(HttpExchange exchange) throws IOException {
-            String requestBody = new String(exchange.getRequestBody().readAllBytes());
-            GameRequest gameRequest = Launcher.objectMapper.readValue(requestBody, GameRequest.class);
-            String responseBody = Launcher.objectMapper.writeValueAsString(gameRequest);
-            exchange.sendResponseHeaders(202, responseBody.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(responseBody.getBytes());
-            }
-        }
-    }
-
-    static class FireHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            if ("GET".equals(exchange.getRequestMethod())) {
-                handleFire(exchange);
-            } else {
-                exchange.sendResponseHeaders(404, -1);
-            }
-        }
-
-        private void handleFire(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            String cell = query != null ? getQueryParam(query, "cell") : null;
-
-            Map<String, Object> response = new HashMap<>();
-
-            if (cell == null || !isValidCell(cell)) {
-                exchange.sendResponseHeaders(400, -1);
-                return;
-            }
-
-            String consequence = processFire(cell);
-            boolean shipLeft = checkIfShipLeft();
-
-            response.put("consequence", consequence);
-            response.put("shipLeft", shipLeft);
-
-            String jsonResponse = Launcher.objectMapper.writeValueAsString(response);
-            exchange.sendResponseHeaders(200, jsonResponse.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(jsonResponse.getBytes());
-            }
-        }
-
-        private String processFire(String cell) {
-            if (gameBoard.containsKey(cell)) {
-                String result = gameBoard.get(cell);
-                if (result.equals("sunk")) {
-                    gameBoard.remove(cell);
-                    return "sunk";
-                }
-                return "hit";
-            }
-            return "miss";
-        }
-
-        private boolean checkIfShipLeft() {
-            return !gameBoard.isEmpty();
-        }
-
-        private String getQueryParam(String query, String param) {
-            for (String pair : query.split("&")) {
-                String[] keyValue = pair.split("=");
-                if (keyValue[0].equals(param)) {
-                    return keyValue.length > 1 ? keyValue[1] : null;
-                }
-            }
-            return null;
-        }
-
-        private boolean isValidCell(String cell) {
-            return cell.matches("^[A-J][1-9]|10$");
-        }
+    static Map<String, String> getGameBoard() {
+        return gameBoard;
     }
 
     private static void sendStartGameRequest(String adversaryUrl, int myPort) {
@@ -156,8 +72,8 @@ public class Launcher {
     }
 
     public static class GameRequest {
-        public String id; // Change to public
-        public String url; // Change to public
-        public String message; // Change to public
+        public String id;
+        public String url;
+        public String message;
     }
 }
