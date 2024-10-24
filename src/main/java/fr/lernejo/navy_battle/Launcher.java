@@ -13,25 +13,20 @@ import java.util.Map;
 
 public class Launcher {
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static Map<String, String> gameBoard = new HashMap<>();
+    private static final Map<String, String> gameBoard = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
+        new Launcher().startGame(args);
+    }
+
+    private void startGame(String[] args) throws IOException {
         int port = Integer.parseInt(args[0]);
         String adversaryUrl = args.length > 1 ? args[1] : null;
 
-        gameBoard.put("B2", "hit");
-        gameBoard.put("C3", "sunk");
+        initializeGameBoard();
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-
-        server.createContext("/ping", exchange -> {
-            String body = "OK";
-            exchange.sendResponseHeaders(200, body.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(body.getBytes());
-            }
-        });
-
+        server.createContext("/ping", this::handlePing);
         server.createContext("/api/game/start", new StartGameHandler());
         server.createContext("/api/game/fire", new FireHandler());
 
@@ -43,19 +38,36 @@ public class Launcher {
         }
     }
 
+    private void initializeGameBoard() {
+        gameBoard.put("B2", "hit");
+        gameBoard.put("C3", "sunk");
+    }
+
+    private void handlePing(HttpExchange exchange) throws IOException {
+        String body = "OK";
+        exchange.sendResponseHeaders(200, body.length());
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body.getBytes());
+        }
+    }
+
     static class StartGameHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             if ("POST".equals(exchange.getRequestMethod())) {
-                String requestBody = new String(exchange.getRequestBody().readAllBytes());
-                GameRequest gameRequest = objectMapper.readValue(requestBody, GameRequest.class);
-                String responseBody = objectMapper.writeValueAsString(gameRequest);
-                exchange.sendResponseHeaders(202, responseBody.length());
-                try (OutputStream os = exchange.getResponseBody()) {
-                    os.write(responseBody.getBytes());
-                }
+                handleStartGame(exchange);
             } else {
                 exchange.sendResponseHeaders(404, -1);
+            }
+        }
+
+        private void handleStartGame(HttpExchange exchange) throws IOException {
+            String requestBody = new String(exchange.getRequestBody().readAllBytes());
+            GameRequest gameRequest = Launcher.objectMapper.readValue(requestBody, GameRequest.class);
+            String responseBody = Launcher.objectMapper.writeValueAsString(gameRequest);
+            exchange.sendResponseHeaders(202, responseBody.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(responseBody.getBytes());
             }
         }
     }
@@ -64,29 +76,33 @@ public class Launcher {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             if ("GET".equals(exchange.getRequestMethod())) {
-                String query = exchange.getRequestURI().getQuery();
-                String cell = query != null ? getQueryParam(query, "cell") : null;
-
-                Map<String, Object> response = new HashMap<>();
-
-                if (cell == null || !isValidCell(cell)) {
-                    exchange.sendResponseHeaders(400, -1);
-                    return;
-                }
-
-                String consequence = processFire(cell);
-                boolean shipLeft = checkIfShipLeft();
-
-                response.put("consequence", consequence);
-                response.put("shipLeft", shipLeft);
-
-                String jsonResponse = objectMapper.writeValueAsString(response);
-                exchange.sendResponseHeaders(200, jsonResponse.length());
-                try (OutputStream os = exchange.getResponseBody()) {
-                    os.write(jsonResponse.getBytes());
-                }
+                handleFire(exchange);
             } else {
                 exchange.sendResponseHeaders(404, -1);
+            }
+        }
+
+        private void handleFire(HttpExchange exchange) throws IOException {
+            String query = exchange.getRequestURI().getQuery();
+            String cell = query != null ? getQueryParam(query, "cell") : null;
+
+            Map<String, Object> response = new HashMap<>();
+
+            if (cell == null || !isValidCell(cell)) {
+                exchange.sendResponseHeaders(400, -1);
+                return;
+            }
+
+            String consequence = processFire(cell);
+            boolean shipLeft = checkIfShipLeft();
+
+            response.put("consequence", consequence);
+            response.put("shipLeft", shipLeft);
+
+            String jsonResponse = Launcher.objectMapper.writeValueAsString(response);
+            exchange.sendResponseHeaders(200, jsonResponse.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(jsonResponse.getBytes());
             }
         }
 
@@ -140,8 +156,8 @@ public class Launcher {
     }
 
     public static class GameRequest {
-        public String id;
-        public String url;
-        public String message;
+        public String id; // Change to public
+        public String url; // Change to public
+        public String message; // Change to public
     }
 }
